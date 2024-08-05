@@ -312,8 +312,11 @@ sub parse_idn_vehicle_plate_number {
 
     # XXX check whether main number is a pretty number
 
-    return [400, "Missing suffix (1-3 letters after main number)"] unless $num =~ s/\A([A-Z]{1,3})//;
-    my $suffix = $1;
+    my $suffix = "";
+  GET_SUFFIX: {
+        last unless $num =~ s/\A([A-Z]{1,3})//;
+        $suffix = $1;
+    }
     $res->{suffix} = $suffix;
 
   CHECK_RF_SUFFIX: {
