@@ -1,0 +1,319 @@
+package Business::ID::VehiclePlate;
+
+use 5.010001;
+use warnings;
+use strict;
+
+use DateTime;
+use Exporter 'import';
+
+# AUTHORITY
+# DATE
+# DIST
+# VERSION
+
+our @EXPORT_OK = qw(parse_idn_vehicle_plate_number);
+
+# source data: devdata/prefixes.csv
+our %prefixes = (
+  A  => {
+          iso_prov_codes => "ID-BT",
+          region => "Banten",
+          summary => "Banten, Cilegon, Serang, Pandeglang, Lebak, Tangerang",
+        },
+  AA => {
+          iso_prov_codes => "ID-JT",
+          region => "Jawa Tengah",
+          summary => "Magelang, Purworejo, Temanggung, Kebumen, Wonosobo",
+        },
+  AB => {
+          iso_prov_codes => "ID-YO",
+          region => "DIY",
+          summary => "Yogyakarta, Bantul, Gunung Kidul, Sleman, Kulon Progo",
+        },
+  AD => {
+          iso_prov_codes => "ID-JT",
+          region => "Jawa Tengah",
+          summary => "Surakarta, Sukoharjo, Boyolali, Klaten, Karanganyar, Sragen, Wonogiri",
+        },
+  AE => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Madiun, Ngawi, Ponorogo, Magetan, Pacitan",
+        },
+  AG => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Kediri, Blitar, Nganjuk, Tulungagung, Trenggalek",
+        },
+  B  => {
+          iso_prov_codes => "ID-JK,ID-JB",
+          region => "DKI",
+          summary => "Jakarta, Depok, Bekasi",
+        },
+  BA => {
+          iso_prov_codes => "ID-SB",
+          region => "Sumatera",
+          summary => "Sumatera Barat",
+        },
+  BB => {
+          iso_prov_codes => "ID-SU",
+          region => "Sumatera",
+          summary => "Sumatera Utara bagian barat",
+        },
+  BD => { iso_prov_codes => "ID-BE", region => "Sumatera", summary => "Bengkulu" },
+  BE => { iso_prov_codes => "ID-LA", region => "Sumatera", summary => "Lampung" },
+  BG => {
+          iso_prov_codes => "ID-SS",
+          region => "Sumatera",
+          summary => "Sumatera Selatan",
+        },
+  BH => { iso_prov_codes => "ID-JA", region => "Sumatera", summary => "Jambi" },
+  BK => {
+          iso_prov_codes => "ID-SU",
+          region => "Sumatera",
+          summary => "Sumatera Utara bagian timur",
+        },
+  BL => { iso_prov_codes => "ID-AC", region => "Sumatera", summary => "Aceh" },
+  BM => { iso_prov_codes => "ID-RI", region => "Sumatera", summary => "Riau" },
+  BN => {
+          iso_prov_codes => "ID-BB",
+          region => "Sumatera",
+          summary => "Bangka-Belitung",
+        },
+  BP => {
+          iso_prov_codes => "ID-KR",
+          region => "Sumatera",
+          summary => "Kepulauan Riau",
+        },
+  D  => { iso_prov_codes => "ID-JB", region => "Jawa Barat", summary => "Bandung" },
+  DA => {
+          iso_prov_codes => "ID-KS",
+          region => "Kalimantan",
+          summary => "Banjarmasin",
+        },
+  DB => {
+          iso_prov_codes => "ID-SA",
+          region => "Sulawesi",
+          summary => "Manado, Bolaang Mongondow, Minahasa, Bitung",
+        },
+  DC => {
+          iso_prov_codes => "ID-SR",
+          region => "Sulawesi",
+          summary => "Majumu, Polewari Mandar, Majene",
+        },
+  DD => {
+          iso_prov_codes => "ID-SN",
+          region => "Sulawesi",
+          summary => "Makassar, Takalar, Giwa, Bantaeng",
+        },
+  DE => {
+          iso_prov_codes => "ID-MA",
+          region => "Maluku & Papua",
+          summary => "Maluku, Serang, Ambon, Tual",
+        },
+  DG => {
+          iso_prov_codes => "ID-MU",
+          region => "Maluku & Papua",
+          summary => "Ternate, Halmahera, Tidore, Murotai",
+        },
+  DH => {
+          iso_prov_codes => "ID-NT",
+          region => "Bali & NT",
+          summary => "Pulau Timor, Kupang",
+        },
+  DK => { iso_prov_codes => "ID-BA", region => "Bali & NT", summary => "Bali" },
+  DL => {
+          iso_prov_codes => "ID-SA",
+          region => "Sulawesi",
+          summary => "Sahinge, Sitaro, Talaud",
+        },
+  DM => {
+          iso_prov_codes => "ID-GO",
+          region => "Sulawesi",
+          summary => "Gorontalo, Bone Bolango",
+        },
+  DN => {
+          iso_prov_codes => "ID-ST",
+          region => "Sulawesi",
+          summary => "Donggala, Palu, Poso",
+        },
+  DR => {
+          iso_prov_codes => "ID-NB",
+          region => "Bali & NT",
+          summary => "Pulau Lombok, Mataram",
+        },
+  DT => {
+          iso_prov_codes => "ID-SG",
+          region => "Sulawesi",
+          summary => "Kolaka, Konawe, Wakatobi, Buton, Kendari",
+        },
+  E  => {
+          iso_prov_codes => "ID-JB",
+          region => "Jawa Barat",
+          summary => "Cirebon, Majalengka, Indramayu, Kuningan",
+        },
+  EA => {
+          iso_prov_codes => "ID-NB",
+          region => "Bali & NT",
+          summary => "Pulau Sumbawa",
+        },
+  EB => {
+          iso_prov_codes => "ID-NT",
+          region => "Bali & NT",
+          summary => "Pulau Flores",
+        },
+  ED => {
+          iso_prov_codes => "ID-NT",
+          region => "Bali & NT",
+          summary => "Pulau Sumba",
+        },
+  F  => {
+          iso_prov_codes => "ID-JB",
+          region => "Jawa Barat",
+          summary => "Bogor, Cianjur,\nSukabumi",
+        },
+  G  => {
+          iso_prov_codes => "ID-JT",
+          region => "Jawa Tengah",
+          summary => "Pekalongan, Pemalang, Batang, Tegal, Brebes",
+        },
+  H  => {
+          iso_prov_codes => "ID-JT",
+          region => "Jawa Tengah",
+          summary => "Semarang, Kendal, Salatiga, Demak",
+        },
+  K  => {
+          iso_prov_codes => "ID-JT",
+          region => "Jawa Tengah",
+          summary => "Pati, Jepara, Kudus, Blora, Rembang, Grombogan",
+        },
+  KB => {
+          iso_prov_codes => "ID-KB",
+          region => "Kalimantan",
+          summary => "Singkawang, Pontianak",
+        },
+  KH => {
+          iso_prov_codes => "ID-KT",
+          region => "Kalimantan",
+          summary => "Palangkaraya, Kotawaringin, Barito",
+        },
+  KT => {
+          iso_prov_codes => "ID-KI",
+          region => "Kalimantan",
+          summary => "Balikpapan, Kutai Kartanegara, Samarinda, Bontang, Kutai",
+        },
+  KU => {
+          iso_prov_codes => "ID-KU",
+          region => "Kalimantan",
+          summary => "Kalimantan Utara",
+        },
+  L  => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Surabaya",
+        },
+  M  => { iso_prov_codes => "ID-JI", region => "Jawa Timur", summary => "Madura" },
+  N  => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Malang, Pasuruan, Probolinggo, Lumajang",
+        },
+  P  => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Bondowoso, Jember, Situbondo, Banyuwangi",
+        },
+  PA => {
+          iso_prov_codes => "ID-PA",
+          region => "Maluku & Papua",
+          summary => "Jayapura, Merauke, Mimika, Paniai",
+        },
+  PB => {
+          iso_prov_codes => "ID-PB",
+          region => "Maluku & Papua",
+          summary => "Papua Barat",
+        },
+  R  => {
+          iso_prov_codes => "ID-JT",
+          region => "Jawa Tengah",
+          summary => "Banyumas, Purbalingga, Cilacap, Banjarnegara",
+        },
+  S  => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Bojonegoro, Tuban, Mojokerto, Lamongan, Jombang",
+        },
+  T  => {
+          iso_prov_codes => "ID-JB",
+          region => "Jawa Barat",
+          summary => "Purwakarta, Karawang, Subang",
+        },
+  W  => {
+          iso_prov_codes => "ID-JI",
+          region => "Jawa Timur",
+          summary => "Gresik, Sidoarjo",
+        },
+  Z  => {
+          iso_prov_codes => "ID-JB",
+          region => "Jawa Barat",
+          summary => "Garut, Sumedang, Tasikmalaya, Pangandaran, Ciamis, Banjar",
+        },
+);
+
+our %SPEC;
+
+$SPEC{parse_idn_vehicle_plate_number} = {
+    v => 1.1,
+    summary => 'Parse Indonesian vehicle plate number',
+    args => {
+        number => {
+            summary => 'Input to be parsed',
+            schema => 'str*',
+            pos => 0,
+            req => 1,
+        },
+    },
+};
+sub parse_idn_vehicle_plate_number {
+    my %args = @_;
+
+    defined(my $num = $args{number})
+        or return [400, "Please specify number"];
+    $num = uc $num;
+    my $res = {};
+
+    $num =~ s/\s+//g;
+
+    return [400, "Missing area prefix (1-2 letters)"] unless $num =~ s/\A([A-Z]{1,2}//;
+    my $prefix = $1;
+    $res->{prefix} = $prefix;
+
+    return [400, "Missing main number (1-4 digits after prefix)"] unless $num =~ s/\A(\d{1,4})//;
+    my $main = $1;
+    $res->{main} = $main;
+
+    return [400, "Missing suffix (1-3 letters after main number)"] unless $num =~ s/\A([A-Z]{1,3})//;
+    my $suffix = $1;
+    $res->{suffix} = $suffix;
+
+    return [400, "Extraneous bits after suffix: $num"] if length $num;
+
+    [200, "OK", $res];
+}
+
+1;
+# ABSTRACT:
+
+=head1 SYNOPSIS
+
+ use Business::ID::VehiclePlate qw(parse_idn_vehicle_plate_number);
+
+ my $res = parse_idn_vehicle_plate_number(number => "B 1234 SJW");
+
+
+=head1 DESCRIPTION
+
+Keywords: vehicle plate number, registered plate number
+
+=cut
