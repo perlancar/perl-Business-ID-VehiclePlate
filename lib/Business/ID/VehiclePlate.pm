@@ -285,17 +285,100 @@ sub parse_idn_vehicle_plate_number {
 
     $num =~ s/\s+//g;
 
-    return [400, "Missing area prefix (1-2 letters)"] unless $num =~ s/\A([A-Z]{1,2}//;
+    return [400, "Missing area prefix (1-2 letters)"] unless $num =~ s/\A([A-Z]{1,2})//;
     my $prefix = $1;
     $res->{prefix} = $prefix;
+    if (my $area = $prefixes{ $prefix }) {
+        $res->{ind_prefix_area} = $area->{summary};
+        $res->{prefix_iso_prov_codes}  = $area->{iso_prov_codes};
+    } else {
+        return [400, "Unknown area prefix: $prefix"];
+    }
 
     return [400, "Missing main number (1-4 digits after prefix)"] unless $num =~ s/\A(\d{1,4})//;
     my $main = $1;
     $res->{main} = $main;
+    if ($main < 1) {
+        return [400, "Main number cannot be 0"];
+    } elsif ($main < 2000) {
+        $res->{ind_main_vehicle_type} = 'Kendaraan penumpang (1-1999)';
+    } elsif ($main < 7000) {
+        $res->{ind_main_vehicle_type} = 'Sepeda motor (2000-6999)';
+    } elsif ($main < 8000) {
+        $res->{ind_main_vehicle_type} = 'Bus (7000-7999)';
+    } else {
+        $res->{ind_main_vehicle_type} = 'Kendaraan beban atau pengangkut (8000-9999)';
+    }
+
+    # XXX check whether main number is a pretty number
 
     return [400, "Missing suffix (1-3 letters after main number)"] unless $num =~ s/\A([A-Z]{1,3})//;
     my $suffix = $1;
     $res->{suffix} = $suffix;
+
+  CHECK_RF_SUFFIX: {
+        last unless $suffix =~ /\ARF(.)\z/;
+        my $s = $1;
+        $res->{ind_suffix_vehicle_type} = 'Staf pemerintahan (RF)';
+        if ($s eq 'S') {
+            $res->{ind_suffix_rf_type} = 'Sekretariat Negara (S)';
+        } elsif ($s =~ /\A[OHQ]\z/) {
+            $res->{ind_suffix_rf_type} = 'Pejabat eselon II (O/H/Q)';
+            $res->{ind_suffix_rf_type} .= ' (Kemenhan)' if $s eq 'H';
+        } elsif ($s eq 'P') {
+            $res->{ind_suffix_rf_type} = 'Polri (P)';
+        } elsif ($s eq 'D') {
+            $res->{ind_suffix_rf_type} = 'TNI AD (D)';
+        } elsif ($s eq 'L') {
+            $res->{ind_suffix_rf_type} = 'TNI AL (L)';
+        } elsif ($s eq 'U') {
+            $res->{ind_suffix_rf_type} = 'TNI AU (U)';
+        } else {
+            $res->{ind_suffix_rf_type} = "Tidak dikenal ($s)"
+        }
+    }
+
+    if ($prefix eq 'B') {
+      CHECK_JAKARTA_SUFFIX1: {
+            my $s = substr($suffix, 0, 1);
+            if ($s eq 'B') {
+                $res->{suffix1_city} = "Jakarta Barat (B)";
+            } elsif ($s eq 'P') {
+                $res->{suffix1_city} = "Jakarta Pusat (P)";
+            } elsif ($s eq 'S') {
+                $res->{suffix1_city} = "Jakarta Selatan (S)";
+            } elsif ($s eq 'T') {
+                $res->{suffix1_city} = "Jakarta Timue (T)";
+            } elsif ($s eq 'U') {
+                $res->{suffix1_city} = "Jakarta Utara & Kepulauan Seribu (U)";
+            } else {
+                $res->{suffix1_city} = "Unknown ($s)";
+            }
+        }
+      CHECK_JAKARTA_SUFFIX2: {
+            last unless length($suffix) >= 2;
+            my $s = substr($suffix, 1, 1);
+            if ($s eq 'A') {
+                $res->{ind_suffix1_vehicle_type} = "Sedan/pickup (A)";
+            } elsif ($s eq 'D') {
+                $res->{ind_suffix1_vehicle_type} = "Truk (D)";
+            } elsif ($s eq 'F') {
+                $res->{ind_suffix1_vehicle_type} = "Minibus/hatchback/city (F)";
+            } elsif ($s eq 'J') {
+                $res->{ind_suffix1_vehicle_type} = "Jip/SUV (J)";
+            } elsif ($s eq 'Q') {
+                $res->{ind_suffix1_vehicle_type} = "Kendaraan staf pemerintah (Q)";
+            } elsif ($s eq 'T') {
+                $res->{ind_suffix1_vehicle_type} = "Taksi (T)";
+            } elsif ($s eq 'U') {
+                $res->{ind_suffix1_vehicle_type} = "Kendaraan staf pemerintah (U)";
+            } elsif ($s eq 'V') {
+                $res->{ind_suffix1_vehicle_type} = "Minibus(V)";
+            } else {
+                $res->{ind_suffix1_vehicle_type} = "Tidak dikenal ($s)";
+            }
+        }
+    }
 
     return [400, "Extraneous bits after suffix: $num"] if length $num;
 

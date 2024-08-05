@@ -5,26 +5,26 @@ use strict;
 use warnings;
 use Test::More 0.98;
 
-use Business::ID::SIM qw(parse_sim);
+use Business::ID::VehiclePlate qw(parse_idn_vehicle_plate_number);
 use Data::Clean::ForJSON;
 
 test_parse(
-    sim    => "0101 06 00 0001",
+    number => "d 1234 AAA",
     result => {
-        'area_code' => '0600',
-        'dob' => 978307200,
-        'prov_code' => '06',
-        'serial' => 1,
+        prefix => 'D',
+        ind_prefix_area => 'Bandung',
+        prefix_iso_prov_codes => 'ID-JB',
+
+        'ind_main_vehicle_type' => 'Kendaraan penumpang (1-1999)',
+        main => '1234',
+
+        suffix => 'AAA',
+
     },
 );
 test_parse(
-    name   => 'invalid month',
-    sim    => "0113 40 00 0001",
-    status => 400,
-);
-test_parse(
-    name   => 'unknown province',
-    sim    => "0113 99 00 0001",
+    name   => 'invalid format',
+    sim    => "1234 SJW",
     status => 400,
 );
 
@@ -35,10 +35,11 @@ sub test_parse {
     my %args = @_;
 
     # just to convert DateTime object to Unix time
-    state $cleanser = Data::Clean::ForJSON->get_cleanser;
+    #state $cleanser = Data::Clean::ForJSON->get_cleanser;
 
-    subtest +($args{name} //= "sim $args{sim}"), sub {
-        my $res = $cleanser->clean_in_place(parse_sim(sim => $args{sim}));
+    subtest +($args{name} //= "number $args{number}"), sub {
+        #my $res = $cleanser->clean_in_place(parse_sim(sim => $args{sim}));
+        my $res = parse_idn_vehicle_plate_number(number => $args{number});
 
         my $st = $args{status} // 200;
         is($res->[0], $st) or diag explain $res;
